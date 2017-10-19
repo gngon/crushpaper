@@ -96,6 +96,7 @@ public class Entry {
 	 * notes, and notebooks.
 	 */
 	@Field()
+	@Analyzer(impl = CaseInsensitiveWhitespaceAnalyzer.class)
 	@Column(length = 800 * 50)
 	private String note;
 
@@ -104,6 +105,7 @@ public class Entry {
 	 * Only set on quotations.
 	 */
 	@Field()
+	@Analyzer(impl = CaseInsensitiveWhitespaceAnalyzer.class)
 	@Column(length = 800 * 50)
 	private String quotation;
 
@@ -113,11 +115,13 @@ public class Entry {
 	 * in another entry.
 	 */
 	@Field()
+	@Analyzer(impl = CaseInsensitiveWhitespaceAnalyzer.class)
 	@Column(length = 1024 * 2)
 	private String sourceTitle;
 
 	/** The text of the notebook title. */
 	@Field()
+	@Analyzer(impl = CaseInsensitiveWhitespaceAnalyzer.class)
 	@Column(length = 1024)
 	private String notebookTitle;
 

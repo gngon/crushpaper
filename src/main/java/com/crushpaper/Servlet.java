@@ -544,6 +544,8 @@ public class Servlet extends HttpServlet {
 			handleHtmlShutdownForm(requestAndResponse);
 		} else if (uri.equals("/clear/")) {
 			handleHtmlClearForm(requestAndResponse);
+		} else if (uri.equals("/indexes/")) {
+			handleHtmlRebuildIndexesDBForm(requestAndResponse);
 		} else if (uri.equals("/onlineBackup/")) {
 			handleHtmlOnlineBackupForm(requestAndResponse);
 		} else if (uri.equals("/checkForErrors/")) {
@@ -643,6 +645,8 @@ public class Servlet extends HttpServlet {
 			handleHtmlDoOnlineDbBackup(requestAndResponse);
 		} else if (uri.startsWith("/doClear/")) {
 			handleHtmlDoClear(requestAndResponse);
+		} else if (uri.startsWith("/doIndexes/")) {
+			handleHtmlDoIndexes(requestAndResponse);
 		} else if (uri.startsWith("/doBackup/")) {
 			handleHtmlDoUserBackup(requestAndResponse);
 		} else if (uri.startsWith("/doShutdown/")) {
@@ -2868,6 +2872,15 @@ public class Servlet extends HttpServlet {
 
 						requestAndResponse
 								.print("<a onclick=\"newPaneForLink(event, '"
+										+ servletText.pageTitleRebuildIndexesDb()
+										+ "', 'clear'); return false;\" title=\""
+										+ servletText.pageTitleRebuildIndexesDbTooltip()
+										+ "\" href=\"/indexes/\">"
+										+ servletText.pageTitleRebuildIndexesDb()
+										+ "</a>\n");
+
+						requestAndResponse
+								.print("<a onclick=\"newPaneForLink(event, '"
 										+ servletText.pageTitleOnlineBackupDb()
 										+ "', 'onlineBackup'); return false;\" title=\""
 										+ servletText
@@ -3951,6 +3964,67 @@ public class Servlet extends HttpServlet {
 		pageWrapper.addFooter();
 	}
 
+	/** Part of the HTML API. Show the rebuild indexes form. */
+	private void handleHtmlRebuildIndexesDBForm(RequestAndResponse requestAndResponse)
+			throws IOException, ServletException {
+		final String title = servletText.pageTitleRebuildIndexesDb();
+		if (addTitle(requestAndResponse, title)) {
+			return;
+		}
+
+		final PageWrapper pageWrapper = new PageWrapper(requestAndResponse,
+				title, true).setPaneId("build");
+
+		pageWrapper.addHeader();
+
+		if (!isUserAnAdmin(requestAndResponse)) {
+			requestAndResponse.print(servletText.errorPageNotAllowed());
+		} else {
+			requestAndResponse.print("<table class=\"nopadding\"><tr><td>");
+			requestAndResponse.print(servletText.pageTitleRebuildIndexesDbTooltip());
+			requestAndResponse.print("<br><br>");
+			requestAndResponse.print(servletText.rebuildAreYouSure());
+			requestAndResponse.print("</td></tr><tr><td>");
+
+			requestAndResponse
+					.print("<form action=\"/doIndexes/"
+							+ "\" method=\"POST\">"
+							+ "<input type=\"hidden\" name=\"csrft\" value=\""
+							+ getCsrft(requestAndResponse)
+							+ "\">"
+							+ "<button onclick=\"replacePaneForForm(event, '"
+							+ servletText.pageTitleRebuildIndexesDb()
+							+ "'); return false;\" class=\"specialbutton withTopMargin\">"
+							+ servletText.pageTitleRebuildIndexesDb()
+							+ "</button></form>");
+			requestAndResponse.print("</td></tr></table>");
+		}
+
+		pageWrapper.addFooter();
+	}
+
+	/** Part of the HTML API. Rebuild the database indexes. */
+	private void handleHtmlDoIndexes(RequestAndResponse requestAndResponse)
+			throws IOException, ServletException {
+		final PageWrapper pageWrapper = new PageWrapper(requestAndResponse,
+				servletText.pageTitleRebuildIndexesDb(), true).setPaneId("indexes");
+		pageWrapper.addHeader();
+		final String csrft = requestAndResponse.getParameter("csrft");
+		if (isTheCsrftWrong(requestAndResponse, csrft)) {
+			requestAndResponse.print(servletText.errorRequiresSignIn(false));
+		} else if (!isUserAnAdmin(requestAndResponse)) {
+			requestAndResponse.print(servletText.errorPageNotAllowed());
+		} else {
+			try {
+				dbLogic.massIndexer();
+			} catch (InterruptedException e) {
+				requestAndResponse.print(servletText.errorInternalDatabase());
+			}
+			requestAndResponse.print(servletText.sentenceRebuilded());
+		}
+
+		pageWrapper.addFooter();
+	}
 	/** Part of the HTML API. Shuts the process down. */
 	private void handleHtmlDoShutdown(RequestAndResponse requestAndResponse)
 			throws IOException, ServletException {

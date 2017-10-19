@@ -38,6 +38,10 @@ For information on how to install, configure and run the CrushPaper server see t
 1. This removes all data from the database.
 1. If the server is configured for single user mode then that account is automatically recreated after the database is cleared.
 
+#### Rebuild Database Indexes
+1. This regenerate all database indexes.
+1. This is usefull if you change your DB analyser.
+
 #### Online Backup
 1. This creates a copy of the database with an CSV extract for each database table.
 1. Changes made while the backup is being done will NOT corrupt the backup.

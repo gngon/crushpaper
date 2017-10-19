@@ -63,6 +63,11 @@ public interface DbInterface {
 	public abstract List<?> getAllUsers(int startPosition, int maxResults);
 
 	/**
+	 * Returns all users.
+	 */
+	public abstract List<?> getAllUsers();
+
+	/**
 	 * Returns the entries that are children of the parent. If the `parentId` is
 	 * null or blank then null is returned.
 	 */
@@ -120,6 +125,11 @@ public interface DbInterface {
 
 	/** Removes all the contents from the DB. */
 	public abstract void clearData();
+
+	/**
+	 * Rebuild database indexes.
+	 */
+	public void massIndexer() throws InterruptedException ;
 
 	/** Commits a transaction if it has been started. */
 	public abstract void commit();

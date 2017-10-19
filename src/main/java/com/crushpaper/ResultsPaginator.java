@@ -17,6 +17,8 @@ along with CrushPaper.  If not, see <http://www.gnu.org/licenses/>.
  */
 package com.crushpaper;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -59,7 +61,7 @@ public class ResultsPaginator {
 	 * The iterator should call this when it has finished iterating to print out
 	 * the right message.
 	 */
-	public void done() {
+	public void done() throws UnsupportedEncodingException {
 		if (resultNumber == (end + 1)) {
 			getPreviousAndNextLinksForPagination(start != 0, true,
 					requestAndResponse, result);
@@ -109,7 +111,7 @@ public class ResultsPaginator {
 	/** Returns the HTML for the next link in pagination. */
 	private void getPreviousAndNextLinksForPagination(
 			boolean includePreviousLink, boolean includeNextLink,
-			RequestAndResponse requestAndResponse, StringBuilder result) {
+			RequestAndResponse requestAndResponse, StringBuilder result) throws UnsupportedEncodingException {
 		StringBuilder baseUrl = new StringBuilder();
 		baseUrl.append(StringEscapeUtils.escapeHtml4(requestAndResponse
 				.getRequestURI()));
@@ -137,7 +139,8 @@ public class ResultsPaginator {
 
 				baseUrl.append(StringEscapeUtils.escapeHtml4(key));
 				baseUrl.append("=");
-				baseUrl.append(StringEscapeUtils.escapeHtml4(value));
+				//baseUrl.append(StringEscapeUtils.escapeHtml4(value));
+				baseUrl.append(URLEncoder.encode(value, "UTF-8"));
 			}
 		}
 

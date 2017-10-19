@@ -18,11 +18,7 @@ along with CrushPaper.  If not, see <http://www.gnu.org/licenses/>.
 package com.crushpaper;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -31,10 +27,16 @@ import javax.persistence.FlushModeType;
 import javax.persistence.Persistence;
 import javax.persistence.Query;
 
+import org.apache.lucene.analysis.miscellaneous.ASCIIFoldingFilter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.*;
+import org.hibernate.CacheMode;
 import org.hibernate.search.jpa.FullTextEntityManager;
+import org.hibernate.search.jpa.FullTextQuery;
+import org.hibernate.search.jpa.Search;
+import org.hibernate.search.query.dsl.BooleanJunction;
 import org.hibernate.search.query.dsl.QueryBuilder;
+import org.hibernate.search.query.dsl.TermMatchingContext;
 
 /**
  * This class is uses JPA/Hibernate/H2 database for persistence. It has a cache
@@ -273,6 +275,17 @@ public class JpaDb implements DbInterface {
 
 	/*
 	 * (non-Javadoc)
+	 *
+	 * @see com.crushpaper.DbInterface#getAllUsers()
+	 */
+	@Override
+	public List<?> getAllUsers() {
+		return getOrCreateEntityManager().createNamedQuery("User.getAll")
+				.getResultList();
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * 
 	 * @see com.crushpaper.DbInterface#getEntriesByParentId(java.lang.String)
 	 */
@@ -339,6 +352,23 @@ public class JpaDb implements DbInterface {
 
 	/*
 	 * (non-Javadoc)
+	 *
+	 * @see com.crushpaper.DbInterface#massIndexer()
+	 */
+	@Override
+	public void massIndexer() throws InterruptedException {
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(getOrCreateEntityManager());
+		fullTextEntityManager
+				.createIndexer( Entry.class )
+				.batchSizeToLoadObjects( 25 )
+				.cacheMode( CacheMode.NORMAL )
+				.threadsToLoadObjects( 12 )
+				.idFetchSize( 150 )
+				.startAndWait();
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * 
 	 * @see
 	 * com.crushpaper.DbInterface#searchEntriesForUserHelper(java.lang.String,
@@ -346,7 +376,7 @@ public class JpaDb implements DbInterface {
 	 */
 	@Override
 	public List<?> searchEntriesForUserHelper(String userId, String field,
-			String query, int startPosition, int maxResults) {
+											  String query, int startPosition, int maxResults) {
 		if (userId == null || userId.isEmpty()
 				|| !idGenerator.isIdWellFormed(userId)) {
 			return new ArrayList<Entry>();
@@ -360,22 +390,85 @@ public class JpaDb implements DbInterface {
 			return new ArrayList<Entry>();
 		}
 
-		FullTextEntityManager fullTextEntityManager = org.hibernate.search.jpa.Search
-				.getFullTextEntityManager(getOrCreateEntityManager());
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(getOrCreateEntityManager());
+		QueryBuilder qb = fullTextEntityManager.getSearchFactory().buildQueryBuilder().forEntity(Entry.class).get();
+		TermMatchingContext onFields;
 
-		QueryBuilder qb = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(Entry.class).get();
+		BooleanJunction<BooleanJunction> bool = qb.bool();
+		org.apache.lucene.search.Query searchQuery = null;
+		String[] searchTerms = query.split("\\s+");
+		String booleanClause = "AND";//default boolean clause
+		boolean hasTerm = false;
+		boolean hasShould = false;
+		boolean hasMust = false;
+		onFields = qb.keyword().wildcard().onField(field);
+		for (int j = 0; j < searchTerms.length; j++) {
+			String currentTerm = searchTerms[j];
+			if (currentTerm.equalsIgnoreCase("AND")
+					|| currentTerm.equals("&&")
+					|| currentTerm.equals("&")
+					) {
+				booleanClause = "AND";
+				continue;
+			} else if (currentTerm.equalsIgnoreCase("OR")
+					|| currentTerm.equals("||")
+					|| currentTerm.equals("|")
+					) {
+				booleanClause = "OR";
+				continue;
+			} else if (currentTerm.equalsIgnoreCase("NOT")
+					|| currentTerm.equals("!=")
+					|| currentTerm.equals("!")
+					) {
+				booleanClause = "NOT";
+				continue;
+			} else {
 
-		org.apache.lucene.search.Query luceneQuery = qb
-				.bool()
-				.must(qb.keyword().onField(field).matching(query).createQuery())
-				.must(new TermQuery(new Term("userId", userId))).createQuery();
+				char[] input = currentTerm.toCharArray();
+				char[] output = new char[input.length];
+				ASCIIFoldingFilter.foldToASCII(input, 0, output, 0, input.length);
+				currentTerm = String.valueOf(output);
 
-		javax.persistence.Query jpaQuery = fullTextEntityManager
-				.createFullTextQuery(luceneQuery, Entry.class)
+				hasTerm = true;
+				if (booleanClause.equals("AND")
+						) {
+					bool.must(onFields.matching(currentTerm.toLowerCase()).createQuery());
+					hasMust = true;
+				} else if (booleanClause.equals("OR")
+						) {
+					bool.should(onFields.matching(currentTerm.toLowerCase()).createQuery());
+					booleanClause = "AND";//default boolean clause
+					hasShould = true;
+				} else if (booleanClause.equals("NOT")
+						) {
+					bool.must(onFields.matching(currentTerm.toLowerCase()).createQuery()).not();
+					booleanClause = "AND";//default boolean clause
+				}
+			}
+		}
+		if(hasMust || (!hasMust && !hasShould)) {//query with AND or one term query with NOT boolean clause
+			bool.must(new TermQuery(new Term("userId", userId))).createQuery();
+		} else {
+			final List<?> users = getAllUsers();
+			for (final Object userUncasted : users) {
+				final User user = (User) userUncasted;
+				if(!user.getId().equals(userId)) {
+					bool.must(new TermQuery(new Term("userId", user.getId()))).not().createQuery();
+				}
+			}
+		}
+
+		if(!hasTerm){
+			return new ArrayList<Entry>();
+		}
+
+		searchQuery = bool.createQuery();
+
+		FullTextQuery fullTextQuery = fullTextEntityManager.createFullTextQuery(searchQuery, Entry.class);
+
+		javax.persistence.Query persistenceQuery = fullTextQuery
 				.setFirstResult(startPosition).setMaxResults(maxResults);
-
-		return jpaQuery.getResultList();
+		return persistenceQuery.getResultList();
 	}
 
 	/**

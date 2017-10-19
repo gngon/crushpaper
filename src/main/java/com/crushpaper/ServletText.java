@@ -422,8 +422,20 @@ public class ServletText {
 		return "Clear DB";
 	}
 
+	public String pageTitleRebuildIndexesDbTooltip() {
+		return "Rebuild the entire database indexes.";
+	}
+	public String pageTitleRebuildIndexesDb() {
+		return "Rebuild DB Indexes";
+	}
+
 	public String sentenceCleared() {
 		return "The database was cleared of all data.";
+	}
+
+
+	public String sentenceRebuilded() {
+		return "Database indexes was regenerate.";
 	}
 
 	public String welcome() {
@@ -456,6 +468,10 @@ public class ServletText {
 
 	public String clearAreYouSure() {
 		return "Clearing removes all data from the database, not just your own.";
+	}
+
+	public String rebuildAreYouSure() {
+		return "Rebuilding indexes regenerate hole database indexes.";
 	}
 
 	public String checkDbForErrorsAreYouSure() {

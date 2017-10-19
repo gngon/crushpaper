@@ -2873,6 +2873,13 @@ public class DbLogic {
 		db.clearData();
 	}
 
+	/**
+	 * API method. Rebuild database indexes.
+	 */
+	public void massIndexer() throws InterruptedException {
+		db.massIndexer();
+	}
+
 	/** Commits a transaction if it has been started. */
 	public void commit() {
 		db.commit();
